@@ -92,6 +92,4 @@ python src/inference.py
   - [`inference.py`](src/inference.py): Skrypt do generowania predykcji masek.
   - [`preprocess.py`](src/preprocess.py): Skrypty do wstępnego przetwarzania danych.
   - [`verify.py`](src/verify.py): Skrypty do weryfikacji poprawności danych.
-- **[`wandb/`](wandb/)**: Lokalne logi i artefakty z eksperymentów Weights & Biases.
-- **[`INSTRUCTIONS.md`](INSTRUCTIONS.md)**: Wewnętrzne notatki techniczne i instrukcje projektowe.
 
