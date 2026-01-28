@@ -1,0 +1,11 @@
+torch==2.10.0
+torchvision
+segmentation-models-pytorch
+albumentations
+wandb
+opencv-python
+numpy
+pyyaml
+torchmetrics
+matplotlib
+tqdm

@@ -1,0 +1,59 @@
+# Systemowe pliki i foldery
+.DS_Store
+Thumbs.db
+
+# Pliki i foldery Pythona
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.log
+
+# Wirtualne środowiska
+venv/
+env/
+.venv/
+
+# Pliki konfiguracyjne IDE
+.vscode/
+.idea/
+
+# Pliki danych tymczasowych
+*.npy
+*.npz
+
+# Pliki wag modeli
+*.h5
+
+# Foldery wynikowe i tymczasowe
+submission/
+results_vis/
+wandb/
+*.wandb
+
+
+# Pliki archiwalne
+*.zip
+
+# Pliki cache
+.cache/
+*.bak
+*.tmp
+
+# Pliki specyficzne dla systemu Windows
+*.lnk
+desktop.ini
+
+# Pliki konfiguracyjne narzędzi
+*.yaml.lock
+
+# Dane
+data/
+
+# readme
+PROJECT_SPECS.md
+INSTRUCTIONS.md
+ABOUT_DATASET.md
+code.md
+old_best/*
