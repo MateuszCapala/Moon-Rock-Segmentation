@@ -31,8 +31,8 @@ submission/
 results_vis/
 wandb/
 *.wandb
-
-
+*.pth
+best_moon_model.pth
 # Pliki archiwalne
 *.zip
 

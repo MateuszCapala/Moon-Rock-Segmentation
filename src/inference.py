@@ -28,7 +28,7 @@ def mask_to_rgb(mask):
 def run_inference(model_path, manifest_path):
     device = "cuda" # if torch.cuda.is_available() else "cpu"
     
-    model = smp.Linknet(encoder_name="resnet34", classes=4)
+    model = smp.Linknet(encoder_name="resnet50", classes=4)
     if not Path(model_path).exists(): return
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device).eval()

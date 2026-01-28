@@ -7,7 +7,7 @@ from dataset import MoonDataset, get_validation_augmentation
 
 def verify():
     device = "cuda" # if torch.cuda.is_available() else "cpu"
-    model = smp.Linknet(encoder_name="resnet34", classes=4).to(device)
+    model = smp.Linknet(encoder_name="resnet50", classes=4).to(device)
     
     try:
         model.load_state_dict(torch.load("best_moon_model.pth"))
@@ -44,13 +44,22 @@ def verify():
             total_tn += tn.sum(dim=0).cpu()
 
     iou_per_class = smp.metrics.iou_score(total_tp, total_fp, total_fn, total_tn, reduction="none")
-    
+    dice_per_class = smp.metrics.f1_score(total_tp, total_fp, total_fn, total_tn, reduction="none")
+    precision_per_class = smp.metrics.precision(total_tp, total_fp, total_fn, total_tn, reduction="none")
+    recall_per_class = smp.metrics.recall(total_tp, total_fp, total_fn, total_tn, reduction="none")
+    accuracy_per_class = smp.metrics.accuracy(total_tp, total_fp, total_fn, total_tn, reduction="none")
+
     classes = ["Tło (Background)", "Duże skały (Large)", "Niebo (Sky)", "Małe skały (Small)"]
+    print("\nMetryki dla każdej klasy:")
     for i, name in enumerate(classes):
-        val = iou_per_class[i].item()
-        print(f"IoU dla {name:20}: {val:.2%}")
-    
-    print(f"Średnie mIoU dla całego modelu: {iou_per_class.mean().item():.2%}")
+        print(f"{name:20} | IoU: {iou_per_class[i].item():.2%} | Dice: {dice_per_class[i].item():.2%} | Precision: {precision_per_class[i].item():.2%} | Recall: {recall_per_class[i].item():.2%} | Accuracy: {accuracy_per_class[i].item():.2%}")
+
+    print("\nŚrednie metryki dla całego modelu:")
+    print(f"mIoU: {iou_per_class.mean().item():.2%}")
+    print(f"mDice: {dice_per_class.mean().item():.2%}")
+    print(f"mPrecision: {precision_per_class.mean().item():.2%}")
+    print(f"mRecall: {recall_per_class.mean().item():.2%}")
+    print(f"mAccuracy: {accuracy_per_class.mean().item():.2%}")
 
 
 if __name__ == "__main__":
