@@ -24,15 +24,97 @@ def mask_to_rgb(mask):
     img[mask == 3] = [0, 255, 0]  # Small Rocks (Green)
     return img
 
+
+def blend_mask_on_image(image_bgr, mask_bgr, class_mask, alpha=0.55):
+    overlay = image_bgr.copy()
+    rock_or_sky = class_mask > 0
+    if np.any(rock_or_sky):
+        blended = cv2.addWeighted(image_bgr, 1.0 - alpha, mask_bgr, alpha, 0.0)
+        overlay[rock_or_sky] = blended[rock_or_sky]
+    return overlay
+
+
+def add_panel_label(panel_bgr, label):
+    labeled = panel_bgr.copy()
+    bar_h = 30
+    cv2.rectangle(labeled, (0, 0), (labeled.shape[1], bar_h), (20, 20, 20), -1)
+    cv2.putText(
+        labeled,
+        label,
+        (8, 21),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
+    return labeled
+
+
+def build_result_row(image_bgr, gt_ind, pred_ind):
+    gt_mask_bgr = mask_to_rgb(gt_ind)
+    pred_mask_bgr = mask_to_rgb(pred_ind.astype(np.uint8))
+
+    gt_overlay = blend_mask_on_image(image_bgr, gt_mask_bgr, gt_ind)
+    pred_overlay = blend_mask_on_image(image_bgr, pred_mask_bgr, pred_ind)
+
+    panels = [
+        add_panel_label(image_bgr, "Real moon image"),
+        add_panel_label(gt_mask_bgr, "Ground truth mask"),
+        add_panel_label(pred_mask_bgr, "Prediction mask"),
+        add_panel_label(gt_overlay, "Ground truth overlay"),
+        add_panel_label(pred_overlay, "Prediction overlay"),
+    ]
+    return np.hstack(panels)
+
+
+def _infer_encoder_from_state_dict(state_dict):
+    # ResNet50+ bottleneck blocks contain conv3; ResNet34 uses only basic blocks.
+    has_bottleneck = any(k.startswith("encoder.layer1.0.conv3") for k in state_dict)
+    if has_bottleneck:
+        return "resnet50"
+
+    has_layer1_block2 = any(k.startswith("encoder.layer1.2") for k in state_dict)
+    if has_layer1_block2:
+        return "resnet34"
+
+    return "resnet18"
+
+
+def _build_model(encoder_name):
+    return smp.Linknet(encoder_name=encoder_name, classes=4)
+
+
+def _load_model_with_auto_encoder(model_path, device):
+    state_dict = torch.load(model_path, map_location=device)
+    inferred_encoder = _infer_encoder_from_state_dict(state_dict)
+
+    encoder_candidates = [inferred_encoder, "resnet34", "resnet50", "resnet18"]
+    encoder_candidates = list(dict.fromkeys(encoder_candidates))
+
+    last_error = None
+    for encoder_name in encoder_candidates:
+        try:
+            model = _build_model(encoder_name)
+            model.load_state_dict(state_dict)
+            print(f"Loaded checkpoint with encoder: {encoder_name}")
+            return model
+        except RuntimeError as err:
+            last_error = err
+
+    raise RuntimeError(
+        "Nie udalo sie zaladowac checkpointu dla zadnego wspieranego enkodera "
+        f"{encoder_candidates}. Ostatni blad: {last_error}"
+    )
+
 def run_inference_real(model_path, real_images_path):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = smp.Linknet(encoder_name="resnet50", classes=4)
     if not Path(model_path).exists():
-        print("Model file not found.")
+        print(f"Model file not found: {model_path}")
         return
 
-    model.load_state_dict(torch.load(model_path, map_location=device))
+    model = _load_model_with_auto_encoder(model_path, device)
     model.to(device).eval()
 
     transform = A.Compose([A.Resize(256, 256), A.Normalize(), ToTensorV2()])
@@ -68,10 +150,7 @@ def run_inference_real(model_path, real_images_path):
             pred = torch.argmax(output, dim=1).squeeze().cpu().numpy()
 
         vis_img = cv2.resize(img, (256, 256))
-        vis_gt = mask_to_rgb(gt_ind)
-        vis_pred = mask_to_rgb(pred.astype(np.uint8))
-
-        results.append(np.hstack([vis_img, vis_gt, vis_pred]))
+        results.append(build_result_row(vis_img, gt_ind, pred))
 
     if results:
         cv2.imwrite("real_moon_results.png", np.vstack(results))

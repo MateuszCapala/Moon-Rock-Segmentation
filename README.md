@@ -1,95 +1,117 @@
-# Segmentacja Skał Księżycowych (Moon Rock Segmentation)
-Projekt zakłada semantyczną segmentację skał na powierzchni księżyca. Celem jest detekcja i klasyfikacja skał małych, dużych oraz nieba na fotorealistycznych renderach.
-Projekt wykorzystuje bibliotekę `segmentation-models-pytorch` do implementacji architektury Linknet opartej na enkoderze ResNet. 
+# Moon Rock Segmentation
 
-## Zbiór Danych (Dataset)
+Projekt semantycznej segmentacji powierzchni Księżyca, którego celem jest pikselowa klasyfikacja obrazu na klasy geologiczne i niebo. Repozytorium zawiera kompletny pipeline: przygotowanie danych, trening, ewaluację i inferencję na danych walidacyjnych oraz realnych zdjęciach.
 
+## Cel Projektu
 
-Projekt wykorzystuje zbiór "Artificial Lunar Landscape Dataset" [[DOI](https://doi.org/10.34740/kaggle/dsv/13263000)].
+Model przypisuje każdemu pikselowi jedną z 4 klas:
 
-- **Wejście:** Obrazy RGB (Rendery)
-- **Wyjście:** Maski segmentacji
-- **Klasy:**
-    1. **Sky (0):** Tło, przestrzeń kosmiczna, horyzont.
-    2. **Small Rocks (1):** Mniejsze odłamki skalne i regolit.
-    3. **Large Rocks (2):** Głównie duże głazy i formacje skalne.
+| ID klasy | Klasa | Opis |
+|---|---|---|
+| 0 | Background | Regolit / tło |
+| 1 | Small Rocks | Drobne skały i odłamki |
+| 2 | Large Rocks | Duże skały i głazy |
+| 3 | Sky | Niebo / horyzont |
 
-### Czyszczenie Danych
-Zbiór danych zawiera znane błędy (artefakty renderowania, niedopasowanie masek). W preprocessingu usuwane są próbki zidentyfikowane jako wadliwe.
+## Dane
 
-## Architektura Modelu
+- Zbiór: Artificial Lunar Landscape Dataset ([DOI](https://doi.org/10.34740/kaggle/dsv/13263000))
+- Wejście: obrazy RGB
+- Wyjście: maski segmentacyjne RGB konwertowane do indeksów klas
+- Podział: train/val zapisany w pliku manifestu CSV
+- Czyszczenie: usuwanie próbek oznaczonych jako anomalne (artefakty renderingu, niedopasowania)
 
-W domyślnej konfiguracji projekt wykorzystuje:
+## Metodologia
 
-- **Architektura:** Linknet
-- **Enkoder:** ResNet34 (z wagami pretrenowanymi na ImageNet)
-- **Funkcja aktywacji:** Softmax2d 
-- **Funkcja straty:** DiceLoss + CrossEntropyLoss (hybrydowe podejście)
+### Architektura
 
+- Model: Linknet (segmentation-models-pytorch)
+- Domyślny enkoder z konfiguracji: ResNet50
+- Wejście: 256x256, 3 kanały
+- Wyjście: mapa klas 256x256, 4 klasy
 
-Wybór architektury został oparty o porównanie modeli segmentacyjnych przedstawione w materiale: ["Semantic Segmentation Models: Comparison" (YouTube)](https://www.youtube.com/watch?v=pw6Jz4lX2Kc).
+### Trening
 
-### Instalacja zależności
+- Optymalizator: AdamW
+- Loss: DiceLoss + CrossEntropyLoss
+- Parametry domyślne: patrz configs/base_config.yaml
+- Logowanie eksperymentów: Weights & Biases
+
+### Augmentacje
+
+- Resize 256x256
+- Horizontal/Vertical Flip
+- RandomRotate90
+- GaussNoise lub RandomBrightnessContrast
+- Normalizacja ImageNet
+
+## Wyniki Wizualne
+
+Poniżej znajduje się przykładowy wynik walidacji z podpisanymi panelami (input, ground truth, prediction, overlay):
+
+![Validation results](validation_results.png)
+
+## Instalacja
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Główne biblioteki:
-- `torch` 
-- `segmentation-models-pytorch` 
-- `albumentations` 
-- `wandb` 
-- `opencv-python`, `pandas`, `numpy`
+## Uruchomienie
 
-## Konfiguracja i Użycie
-
-Wszelkie hiperparametry treningu znajdują się w pliku `configs/base_config.yaml`.
-
-### Struktura pliku konfiguracyjnego
-```yaml
-model:
-  architecture: "Linknet"
-  encoder: "resnet34"      
-  weights: "imagenet"
-  in_channels: 3
-  num_classes: 4           
-
-training:
-  batch_size: 16
-  epochs: 50
-  lr: 0.0001
-  optimizer: "AdamW"
-  loss: "dice_ce"
-  num_workers: 4
-  device: "auto"       
-```
-
-### Trening
-Aby rozpocząć proces uczenia modelu, należy uruchomić skrypt treningowy.
+### 1) Trening
 
 ```bash
-python src/train.py 
+python src/train.py --config configs/base_config.yaml
 ```
-Skrypt automatycznie inicjalizuje logowanie do Weights & Biases (WandB), jeśli jest skonfigurowane.
 
-### Ewaluacja i Inferencja
-Generowanie masek dla zbioru testowego odbywa się za pomocą skryptu `inference.py`.
+### 2) Ewaluacja metryk
 
 ```bash
-python src/inference.py 
+python src/verify.py
 ```
 
+### 3) Inferencja na walidacji (generuje validation_results.png)
+
+```bash
+python src/inference.py
+```
+
+### 4) Inferencja na realnych zdjęciach (generuje real_moon_results.png)
+
+```bash
+python src/inference_real.py
+```
+
+## Reprodukowalność
+
+- Główna konfiguracja eksperymentu: configs/base_config.yaml
+- Manifest danych: data/manifest.csv
+- Najlepsze checkpointy: pliki .pth w katalogu głównym lub katalogach wynikowych
+- Do porównywania eksperymentów rekomendowane jest użycie W&B
 
 ## Struktura Repozytorium
 
-- **[`configs/base_config.yaml`](configs/base_config.yaml)**: Plik konfiguracyjny z hiperparametrami i ustawieniami modelu.
-- **[`data/`](data/)**: Surowe dane, listy anomalii oraz pliki manifestu CSV.
-  - `archive/`: Zbiór obrazów i masek, pliki pomocnicze (np. bounding_boxes.csv, listy anomalii).
-- **[`src/`](src/)**: Kod źródłowy projektu.
-  - [`dataset.py`](src/dataset.py): Klasa `MoonDataset` i logika ładowania danych.
-  - [`train.py`](src/train.py): Główna pętla treningowa.
-  - [`inference.py`](src/inference.py): Skrypt do generowania predykcji masek.
-  - [`preprocess.py`](src/preprocess.py): Skrypty do wstępnego przetwarzania danych.
-  - [`verify.py`](src/verify.py): Skrypty do weryfikacji poprawności danych.
+```text
+projekt_ksiezyc/
+|-- configs/
+|   `-- base_config.yaml
+|-- data/
+|   |-- manifest.csv
+|   `-- archive/
+|-- src/
+|   |-- dataset.py
+|   |-- preprocess.py
+|   |-- train.py
+|   |-- verify.py
+|   |-- inference.py
+|   `-- inference_real.py
+|-- requirements.txt
+`-- README.md
+```
+
+## Uwagi Techniczne
+
+- Skrypty inferencyjne automatycznie dobierają zgodny enkoder (np. ResNet34/ResNet50) na podstawie checkpointu.
+- Wizualizacje zawierają osobno maski i overlay, aby jednocześnie zachować czytelność tekstury skał oraz kolorów klas.
 
