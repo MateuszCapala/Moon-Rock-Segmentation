@@ -83,35 +83,4 @@ python src/inference.py
 python src/inference_real.py
 ```
 
-## Reprodukowalność
-
-- Główna konfiguracja eksperymentu: configs/base_config.yaml
-- Manifest danych: data/manifest.csv
-- Najlepsze checkpointy: pliki .pth w katalogu głównym lub katalogach wynikowych
-- Do porównywania eksperymentów rekomendowane jest użycie W&B
-
-## Struktura Repozytorium
-
-```text
-projekt_ksiezyc/
-|-- configs/
-|   `-- base_config.yaml
-|-- data/
-|   |-- manifest.csv
-|   `-- archive/
-|-- src/
-|   |-- dataset.py
-|   |-- preprocess.py
-|   |-- train.py
-|   |-- verify.py
-|   |-- inference.py
-|   `-- inference_real.py
-|-- requirements.txt
-`-- README.md
-```
-
-## Uwagi Techniczne
-
-- Skrypty inferencyjne automatycznie dobierają zgodny enkoder (np. ResNet34/ResNet50) na podstawie checkpointu.
-- Wizualizacje zawierają osobno maski i overlay, aby jednocześnie zachować czytelność tekstury skał oraz kolorów klas.
 
